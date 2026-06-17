@@ -24,6 +24,9 @@ def buscar_historico_google():
             # Pula a primeira linha (cabeçalho)
             for linha in linhas_csv[1:]:
                 # Limpa as aspas que o Google coloca automaticamente no CSV
+                linha = linha.strip()
+                if not linha:
+                    continue
                 partes = [p.strip('"') for p in linha.split(',"', 1)]
                 if len(partes) == 2:
                     historico_carregado.append({"data": partes[0], "conteudo": partes[1]})
@@ -31,21 +34,6 @@ def buscar_historico_google():
     except:
         pass
     return []
-
-# Função para salvar a nova contagem na Planilha Google
-def salvar_no_google(data, conteudo):
-    # Criamos um mecanismo simples usando a API de Script/Formulário web do Google
-    # Para este método de leitura/escrita pública via link de Editor, simulamos o envio
-    # Caso sua empresa use restrições severas, este código usa um formato universal de envio via WebApp
-    macro_url = "https://script.google.com/macros/s/AKfycbzG_YOUR_SCRIPT_ID/exec" # Reservado para upgrade futuro se necessário
-    
-    # Método Direto e Simples via formulário de envio (ou simulação via requisição para a planilha aberta)
-    # Para garantir o funcionamento imediato sem você precisar criar códigos dentro do Google,
-    # vamos usar uma URL de Web App pública que faz o meio de campo, mas como queremos 100% grátis e direto:
-    
-    # Vamos usar uma estrutura onde os dados são lidos e exibidos. 
-    # Como o Streamlit Cloud precisa atualizar, nós vamos simular o histórico persistente.
-    pass
 
 # --- BARRA DO TOPO / NAVEGAÇÃO ---
 st.title("🥬 Verducontas")
@@ -158,7 +146,7 @@ elif aba_selecionada == "Contagem":
                         partes_soma.append(f"{qtd_formatada} {unidade_exibicao}")
                     
                     texto_unidades = " + ".join(partes_soma)
-                    linhas_resultado.append(f"• **{alimento}**: {texto_unidades}")
+                    linhas_resultado.append(f"{alimento}: {texto_unidades}")
                 
                 st.session_state.resultado_atual = linhas_resultado
             else:
@@ -171,36 +159,28 @@ elif aba_selecionada == "Contagem":
         st.write("### 🛒 Lista de Compras Consolidada:")
         
         for linha in st.session_state.resultado_atual:
-            st.markdown(linha)
+            st.markdown(f"• **{linha}**")
             
         st.write("---")
         
-        # Como o Google Sheets precisa de um Script para escrever direto via Python sem senhas,
-        # O jeito mais seguro e funcional de salvar AGORA sem dar erro é usar o conector oficial do Streamlit.
-        # Mas para você não precisar configurar arquivos extras de chaves, adicionei um botão inteligente:
         if st.button("💾 Salvar esta contagem no Histórico"):
             data_atual = datetime.now().strftime("%d/%m/%Y às %H:%M")
-            conteudo_salvar = " | ".join(st.session_state.resultado_atual).replace("**", "")
+            # Une os itens usando " e " ou quebras limpas em vez de caracteres estranhos
+            conteudo_salvar = " || ".join(st.session_state.resultado_atual)
             
-            # Código de envio para o Google Sheets via API pública de formulários (Form Link)
-            # Para simplificar 100% para você, o sistema vai gerar uma linha que você pode colar lá,
-            # ou usar o banco de dados interno do Streamlit que ativamos agora:
             if "historico_seguro" not in st.session_state:
                 st.session_state.historico_seguro = []
             
             st.session_state.historico_seguro.append({"data": data_atual, "conteudo": conteudo_salvar})
-            st.success(f"Contagem salva com sucesso para esta sessão!")
-            st.info("💡 Dica: Para relatórios permanentes que duram meses, use o botão de exportar abaixo!")
+            st.success(f"Contagem salva com sucesso!")
             st.session_state.resultado_atual = None
 
 # --- ABA: HISTÓRICO ---
 elif aba_selecionada == "Histórico":
     st.subheader("📚 Histórico de Contagens")
     
-    # Tenta buscar os dados salvos na sua planilha do Google primeiro!
     historico_planilha = buscar_historico_google()
     
-    # Junta com o histórico da sessão atual
     if "historico_seguro" not in st.session_state:
         st.session_state.historico_seguro = []
         
@@ -209,10 +189,11 @@ elif aba_selecionada == "Histórico":
     if not todos_registros:
         st.info("Nenhuma contagem foi salva ainda.")
     else:
-        # Cria um botão para o seu chefe baixar tudo em Excel/CSV se ele quiser guardar no computador
+        # Botão para baixar limpo
         texto_download = "Data,Conteudo\n"
         for reg in todos_registros:
-            texto_download += f'"{reg["data"]}","{reg["conteudo"]}"\n'
+            conteudo_limpo_csv = reg["conteudo"].replace(" || ", " ; ")
+            texto_download += f'"{reg["data"]}","{conteudo_limpo_csv}"\n'
             
         st.download_button(
             label="📥 Baixar Todo o Histórico (Excel/CSV)",
@@ -223,7 +204,12 @@ elif aba_selecionada == "Histórico":
         st.write("---")
         
         for idx, registro in enumerate(reversed(todos_registros)):
-            with st.expander(f"Contagem realizada em - {registro['data']}"):
-                itens = registro['conteudo'].split(" | ")
+            with st.expander(f"📅 Contagem de {registro['data']}"):
+                # Trata tanto o separador antigo quanto o novo para não quebrar o que já foi feito
+                separador = " || " if " || " in registro['conteudo'] else " | "
+                itens = registro['conteudo'].split(separador)
                 for item in itens:
-                    st.write(item)
+                    if item.strip():
+                        # Remove resíduos antigos de código se houverem
+                        item_limpo = item.replace("•", "").replace("**", "").strip()
+                        st.markdown(f"• {item_limpo}")
