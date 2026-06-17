@@ -134,7 +134,7 @@ elif aba_selecionada == "Contagem":
                     texto_unidades = " + ".join(partes_soma)
                     linhas_resultado.append(f"• **{alimento}**: {texto_unidades}")
                 
-                st.session_state.resultado_atual = lines_resultado
+                st.session_state.resultado_atual = linhas_resultado  # <- CORRIGIDO AQUI (de 'lines_resultado' para 'linhas_resultado')
             else:
                 st.error("Não consegui processar as linhas. Verifique o formato.")
                 st.session_state.resultado_atual = None
