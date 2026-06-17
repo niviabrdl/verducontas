@@ -68,23 +68,23 @@ elif aba_selecionada == "Contagem":
                     else:
                         qtd = float(qtd_str.replace(',', '.'))
                     
-                    # Verifica se a próxima palavra é uma unidade conhecida (ex: "quilos de banana")
+                    # Verifica se a próxima palavra é uma unidade conhecida
                     palavras_resto = resto.split()
                     if palavras_resto and palavras_resto[0] in unidades_conhecidas:
                         unidade_crua = palavras_resto[0]
                         alimento_cru = " ".join(palavras_resto[1:])
                         
                         if unidade_crua in ["kg", "quilo", "quilos", "kilos", "kilo"]:
-                            unidade = "quilo" if qtd <= 1 else "quilos"
+                            unidade = "quilos"
                         elif unidade_crua in ["un", "unidade", "unidades", "unid", "maço", "maços"]:
-                            unidade = "unidade" if qtd <= 1 else "unidades"
+                            unidade = "unidades"
                         elif unidade_crua in ["dúzia", "duzia", "dúzias", "duzias"]:
-                            unidade = "dúzia" if qtd <= 1 else "dúzias"
+                            unidade = "dúzias"
                         else:
                             unidade = unidade_crua
                     else:
-                        # Se não tem unidade explícita (ex: "6 alface americana"), tudo é o alimento
-                        unidade = "unidade" if qtd <= 1 else "unidades"
+                        # Se não tem unidade explícita, vira unidades
+                        unidade = "unidades"
                         alimento_cru = resto
                     
                     # Limpeza do Alimento
@@ -111,6 +111,7 @@ elif aba_selecionada == "Contagem":
                     if alimento:
                         if alimento not in inventario:
                             inventario[alimento] = {}
+                        # Agora ele soma na unidade correta padronizada
                         inventario[alimento][unidade] = inventario[alimento].get(unidade, 0.0) + qtd
             
             if inventario:
@@ -120,12 +121,20 @@ elif aba_selecionada == "Contagem":
                     partes_soma = []
                     for unidade, qtd in unidades_do_alimento.items():
                         qtd_formatada = int(qtd) if qtd.is_integer() else qtd
-                        partes_soma.append(f"{qtd_formatada} {unidade}")
+                        
+                        # Ajuste para mostrar a palavra no singular se a quantidade final for exatamente 1
+                        unidade_exibicao = unidade
+                        if qtd_formatada == 1:
+                            if unidade == "quilos": unidade_exibicao = "quilo"
+                            elif unidade == "unidades": unidade_exibicao = "unidade"
+                            elif unidade == "dúzias": unidade_exibicao = "dúzia"
+                        
+                        partes_soma.append(f"{qtd_formatada} {unidade_exibicao}")
                     
                     texto_unidades = " + ".join(partes_soma)
                     linhas_resultado.append(f"• **{alimento}**: {texto_unidades}")
                 
-                st.session_state.resultado_atual = linhas_resultado
+                st.session_state.resultado_atual = lines_resultado
             else:
                 st.error("Não consegui processar as linhas. Verifique o formato.")
                 st.session_state.resultado_atual = None
