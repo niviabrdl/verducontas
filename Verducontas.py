@@ -44,79 +44,80 @@ elif aba_selecionada == "Contagem":
             st.session_state.resultado_atual = None
         else:
             linhas = texto_pedidos.split('\n')
-            
-            # Estrutura do inventário: { "Alimento": { "quilo": 11.0, "unidade": 5.0 } }
             inventario = {}
             
-            # Lista de palavras de ligação e variações de unidades para limpar o texto
+            # Unidades conhecidas para o sistema procurar
+            unidades_conhecidas = ["quilo", "quilos", "kg", "kilo", "kilos", "unidade", "unidades", "un", "unid", "dúzia", "dúzias", "duzia", "duzias", "maço", "maços", "cx", "caixa"]
             remover_palavras = ["de", "do", "da", "dos", "das", "grande", "maduro", "verde", "lavada", "metade", "média", "caixa"]
             
             for linha in linhas:
                 linha = linha.strip().lower()
-                if not linha or "escola" in linha or "hortaliças" in linha or "ovos" in linha or "frutas" in linha or "pedidos" in linha:
+                if not linha or any(palavra in linha for palavra in ["escola", "hortaliças", "ovos", "frutas", "pedidos"]):
                     continue
                 
-                # Remover observações entre parênteses (ex: "(metade verde)")
                 linha = re.sub(r'\(.*?\)', '', linha).strip()
                 
-                # Tenta capturar: Número (pode ter ponto ou vírgula) + Unidade + Resto da linha
-                # Ex: "11 quilos de banana" -> Grupo 1: "11", Grupo 2: "quilos", Grupo 3: "de banana"
-                match = re.match(r"^([0-9.,/½]+)\s*([a-zA-Záéíóúçãõ-ü]+)\s+(.+)$", linha)
-                
-                if match:
-                    qtd_str = match.group(1)
-                    unidade_crua = match.group(2)
-                    alimento_cru = match.group(3)
+                # Captura o número no início da linha
+                match_num = re.match(r"^([0-9.,/½]+)\s*(.*)$", linha)
+                if match_num:
+                    qtd_str = match_num.group(1)
+                    resto = match_num.group(2).strip()
                     
-                    # Tratamento da quantidade
                     if "½" in qtd_str:
                         qtd = 0.5
                     else:
                         qtd = float(qtd_str.replace(',', '.'))
+                    
+                    # Verifica se a próxima palavra é uma unidade conhecida (ex: "quilos de banana")
+                    palavras_resto = resto.split()
+                    if palavras_resto and palavras_resto[0] in unidades_conhecidas:
+                        unidade_crua = palavras_resto[0]
+                        alimento_cru = " ".join(palavras_resto[1:])
                         
-                    # Padronização de unidades comuns
-                    if unidade_crua in ["kg", "quilo", "quilos", "kilos", "kilo"]:
-                        unidade = "quilo" if qtd <= 1 else "quilos"
-                    elif unidade_crua in ["un", "unidade", "unidades", "unid"]:
-                        unidade = "unidade" if qtd <= 1 else "unidades"
-                    elif unidade_crua in ["dúzia", "duzia", "dúzias", "duzias"]:
-                        unidade = "dúzia" if qtd <= 1 else "dúzias"
-                    elif unidade_crua in ["maço", "maços"]:
-                        unidade = "unidade" if qtd <= 1 else "unidades" # Converte maço para unidade conforme seu padrão
+                        if unidade_crua in ["kg", "quilo", "quilos", "kilos", "kilo"]:
+                            unidade = "quilo" if qtd <= 1 else "quilos"
+                        elif unidade_crua in ["un", "unidade", "unidades", "unid", "maço", "maços"]:
+                            unidade = "unidade" if qtd <= 1 else "unidades"
+                        elif unidade_crua in ["dúzia", "duzia", "dúzias", "duzias"]:
+                            unidade = "dúzia" if qtd <= 1 else "dúzias"
+                        else:
+                            unidade = unidade_crua
                     else:
-                        unidade = unidade_crua
-                        
-                    # Limpeza do Nome do Alimento
+                        # Se não tem unidade explícita (ex: "6 alface americana"), tudo é o alimento
+                        unidade = "unidade" if qtd <= 1 else "unidades"
+                        alimento_cru = resto
+                    
+                    # Limpeza do Alimento
                     palavras_alimento = alimento_cru.split()
-                    palavras_filtradas = [p for p in palavras_alimento if p not in remover_palavras and not p.startswith("caixa")]
-                    
-                    # Junção e padronização gramatical dos nomes
+                    palavras_filtradas = [p for p in palavras_alimento if p not in remover_palavras]
                     alimento = " ".join(palavras_filtradas).strip().title()
-                    if alimento.endswith('s') and not alimento.endswith('lucas') and not alimento.endswith('chuchu'):
-                        # Remove o plural simples para agrupar (ex: "peras" vira "Pêra")
-                        alimento = alimento[:-1].title()
                     
-                    # Correções específicas de digitação/acentuação para agrupamento perfeito
+                    # Padronizações e correções gramaticais automáticas
+                    if alimento.endswith('s') and not alimento.endswith('lucas') and not alimento.endswith('chuchu') and not alimento.endswith('brócolis') and not alimento.endswith('brocolis'):
+                        alimento = alimento[:-1].title()
+                        
                     if "Pera" in alimento: alimento = "Pêra"
                     if "Chuchu" in alimento: alimento = "Chuchu"
                     if "Ovo" in alimento: alimento = "Ovos"
                     if "Laranja" in alimento: alimento = "Laranjas"
                     if "Limão" in alimento or "Limoe" in alimento: alimento = "Limão"
                     if "Pepino" in alimento: alimento = "Pepino"
+                    if "Brocolis" in alimento or "Brócolis" in alimento: alimento = "Brócolis"
+                    if "Cebolinha" in alimento: alimento = "Cebolinha"
+                    if "Salsinha" in alimento: alimento = "Salsinha"
+                    if "Alface" in alimento and "Americana" not in alimento: alimento = "Alface"
                     if "Batata" in alimento and "Doce" not in alimento: alimento = "Batata"
                     
-                    # Salva no dicionário agrupado por Alimento e depois por Unidade
-                    if alimento not in inventario:
-                        inventario[alimento] = {}
-                    inventario[alimento][unidade] = inventario[alimento].get(unidade, 0.0) + qtd
+                    if alimento:
+                        if alimento not in inventario:
+                            inventario[alimento] = {}
+                        inventario[alimento][unidade] = inventario[alimento].get(unidade, 0.0) + qtd
             
-            # Se conseguiu processar itens, monta o resultado final
             if inventario:
                 linhas_resultado = []
                 for alimento in sorted(inventario.keys()):
                     unidades_do_alimento = inventario[alimento]
                     partes_soma = []
-                    
                     for unidade, qtd in unidades_do_alimento.items():
                         qtd_formatada = int(qtd) if qtd.is_integer() else qtd
                         partes_soma.append(f"{qtd_formatada} {unidade}")
@@ -124,13 +125,11 @@ elif aba_selecionada == "Contagem":
                     texto_unidades = " + ".join(partes_soma)
                     linhas_resultado.append(f"• **{alimento}**: {texto_unidades}")
                 
-                # Guarda o resultado na sessão para não sumir ao clicar em outros botões
                 st.session_state.resultado_atual = linhas_resultado
             else:
-                st.error("Não consegui entender o formato das linhas. Certifique-se de começar com a quantidade (Ex: 11 quilos de banana).")
+                st.error("Não consegui processar as linhas. Verifique o formato.")
                 st.session_state.resultado_atual = None
 
-    # --- EXIBIÇÃO DOS RESULTADOS E BOTÃO SALVAR ---
     if st.session_state.resultado_atual:
         st.write("---")
         st.success("Contagem realizada com sucesso!")
@@ -140,17 +139,14 @@ elif aba_selecionada == "Contagem":
             st.markdown(linha)
             
         st.write("---")
-        # O botão de salvar agora fica fora do "if do processar", consertando o bug do histórico!
         if st.button("💾 Salvar esta contagem no Histórico"):
             data_atual = datetime.now().strftime("%d/%m/%Y às %H:%M")
             conteudo_salvar = " | ".join(st.session_state.resultado_atual).replace("**", "")
             
             st.session_state.historico.append({"data": data_atual, "conteudo": conteudo_salvar})
             st.success(f"Contagem salva no histórico em {data_atual}!")
-            # Limpa o resultado atual após salvar
             st.session_state.resultado_atual = None
 
-# --- ABA: HISTÓRICO ---
 elif aba_selecionada == "Histórico":
     st.subheader("📚 Histórico de Contagens")
     
