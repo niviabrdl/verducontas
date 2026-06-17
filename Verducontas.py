@@ -9,6 +9,9 @@ st.set_page_config(page_title="Verducontas", layout="centered")
 # ID da sua planilha Google Sheets
 SPREADSHEET_ID = "1DNjpaoFT-HdBMtb0EppMIx2IO0LZbNqvkaKVr4nI56Q"
 
+# ⚠️ APAGUE O LINK ABAIXO E COLE O SEU "URL DO APP DA WEB" QUE VOCÊ COPIOU NO PASSO 11:
+URL_DO_PORTEIRO_GOOGLE = https://script.google.com/macros/s/AKfycbxkba4QkZeF5La-TrZah0YdmEblLiHC1LBQsrWBJl3uCd4BV-4-6uPPg9ZEjjbBkVp-HA/exec
+
 # Inicialização do resultado atual na memória
 if "resultado_atual" not in st.session_state:
     st.session_state.resultado_atual = None
@@ -21,9 +24,7 @@ def buscar_historico_google():
         if resposta.status_code == 200:
             linhas_csv = resposta.text.split('\n')
             historico_carregado = []
-            # Pula a primeira linha (cabeçalho)
             for linha in linhas_csv[1:]:
-                # Limpa as aspas que o Google coloca automaticamente no CSV
                 linha = linha.strip()
                 if not linha:
                     continue
@@ -34,6 +35,17 @@ def buscar_historico_google():
     except:
         pass
     return []
+
+# Função para salvar fisicamente na planilha Google
+def salvar_na_planilha_google(data, conteudo):
+    try:
+        dados = {"data": data, "conteudo": conteudo}
+        resposta = requests.post(URL_DO_PORTEIRO_GOOGLE, json=dados)
+        if resposta.status_code == 200:
+            return True
+    except:
+        pass
+    return False
 
 # --- BARRA DO TOPO / NAVEGAÇÃO ---
 st.title("🥬 Verducontas")
@@ -163,53 +175,42 @@ elif aba_selecionada == "Contagem":
             
         st.write("---")
         
-        if st.button("💾 Salvar esta contagem no Histórico"):
+        if st.button("💾 Salvar esta contagem na Planilha Google"):
             data_atual = datetime.now().strftime("%d/%m/%Y às %H:%M")
-            # Une os itens usando " e " ou quebras limpas em vez de caracteres estranhos
             conteudo_salvar = " || ".join(st.session_state.resultado_atual)
             
-            if "historico_seguro" not in st.session_state:
-                st.session_state.historico_seguro = []
+            # Envia direto para a planilha do Google Sheets via Porteiro Script
+            com_sucesso = salvar_na_planilha_google(data_atual, conteudo_salvar)
             
-            st.session_state.historico_seguro.append({"data": data_atual, "conteudo": conteudo_salvar})
-            st.success(f"Contagem salva com sucesso!")
+            if com_sucesso:
+                st.success(f"🎉 Salvo direto na sua Planilha Google com sucesso!")
+            else:
+                st.warning("Salvo temporariamente no site, mas houve um problema de conexão com a planilha do Google.")
+                if "historico_seguro" not in st.session_state:
+                    st.session_state.historico_seguro = []
+                st.session_state.historico_seguro.append({"data": data_atual, "conteudo": conteudo_salvar})
+                
             st.session_state.resultado_atual = None
 
 # --- ABA: HISTÓRICO ---
 elif aba_selecionada == "Histórico":
-    st.subheader("📚 Histórico de Contagens")
+    st.subheader("📚 Histórico de Contagens (Direto da Planilha Google)")
     
-    historico_planilha = buscar_historico_google()
+    # Busca em tempo real o que está na Planilha Google!
+    todos_registros = buscar_historico_google()
     
-    if "historico_seguro" not in st.session_state:
-        st.session_state.historico_seguro = []
-        
-    todos_registros = historico_planilha + st.session_state.historico_seguro
+    # Se houver algum registro temporário na sessão por falha de rede, junta aqui
+    if "historico_seguro" in st.session_state:
+        todos_registros = todos_registros + st.session_state.historico_seguro
     
     if not todos_registros:
-        st.info("Nenhuma contagem foi salva ainda.")
+        st.info("Nenhuma contagem foi encontrada na planilha do Google ainda.")
     else:
-        # Botão para baixar limpo
-        texto_download = "Data,Conteudo\n"
-        for reg in todos_registros:
-            conteudo_limpo_csv = reg["conteudo"].replace(" || ", " ; ")
-            texto_download += f'"{reg["data"]}","{conteudo_limpo_csv}"\n'
-            
-        st.download_button(
-            label="📥 Baixar Todo o Histórico (Excel/CSV)",
-            data=texto_download,
-            file_name="historico_verducontas.csv",
-            mime="text/csv",
-        )
-        st.write("---")
-        
         for idx, registro in enumerate(reversed(todos_registros)):
             with st.expander(f"📅 Contagem de {registro['data']}"):
-                # Trata tanto o separador antigo quanto o novo para não quebrar o que já foi feito
                 separador = " || " if " || " in registro['conteudo'] else " | "
                 itens = registro['conteudo'].split(separador)
                 for item in itens:
                     if item.strip():
-                        # Remove resíduos antigos de código se houverem
                         item_limpo = item.replace("•", "").replace("**", "").strip()
                         st.markdown(f"• {item_limpo}")
