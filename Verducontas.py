@@ -10,7 +10,7 @@ st.set_page_config(page_title="Verducontas", layout="centered")
 SPREADSHEET_ID = "1DNjpaoFT-HdBMtb0EppMIx2IO0LZbNqvkaKVr4nI56Q"
 
 # ⚠️ APAGUE O LINK ABAIXO E COLE O SEU "URL DO APP DA WEB" QUE VOCÊ COPIOU NO PASSO 11:
-URL_DO_PORTEIRO_GOOGLE = https://script.google.com/macros/s/AKfycbxkba4QkZeF5La-TrZah0YdmEblLiHC1LBQsrWBJl3uCd4BV-4-6uPPg9ZEjjbBkVp-HA/exec
+URL_DO_PORTEIRO_GOOGLE = "https://script.google.com/macros/s/AKfycbxkba4QkZeF5La-TrZah0YdmEblLiHC1LBQsrWBJl3uCd4BV-4-6uPPg9ZEjjbBkVp-HA/exec"
 
 # Inicialização do resultado atual na memória
 if "resultado_atual" not in st.session_state:
